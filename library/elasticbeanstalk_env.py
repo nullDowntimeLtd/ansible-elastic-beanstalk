@@ -286,9 +286,6 @@ def main():
     if tier_name == 'Worker':
         tier_type = 'SQS/HTTP'
 
-    option_setting_tups = [(os['Namespace'],os['OptionName'],os['Value']) for os in option_settings]
-    option_to_remove_tups = [(otr['Namespace'],otr['OptionName']) for otr in options_to_remove]
-
 
     region, ec2_url, aws_connect_kwargs = get_aws_connection_info(module, boto3=True)
 
@@ -327,7 +324,7 @@ def main():
             ebs.create_environment(**filter_empty(ApplicationName=app_name, EnvironmentName=env_name,
                                    VersionLabel=version_label, TemplateName=template_name, Tags=tags_to_apply,
                                    SolutionStackName=solution_stack_name, NAMEPrefix=cname_prefix,
-                                   Description=description, OptionSettings=option_setting_tups,
+                                   Description=description, OptionSettings=option_settings,
                                    Tier={ 'Name': tier_name, 'Type': tier_type, 'Version': '1.0' }))
 
             env = wait_for(ebs, app_name, env_name, wait_timeout, status_is_ready)
@@ -350,7 +347,8 @@ def main():
                                        VersionLabel=version_label,
                                        TemplateName=template_name,
                                        Description=description,
-                                       OptionSettings=option_setting_tups))
+                                       OptionSettings=option_settings,
+                                       OptionsToRemove=options_to_remove))
 
                 env = wait_for(ebs, app_name, env_name, wait_timeout, lambda environment: status_is_ready(environment) and version_is_updated(version_label, environment))
 
