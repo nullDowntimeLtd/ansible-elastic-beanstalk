@@ -48,22 +48,27 @@ EXAMPLES = '''
 '''
 
 try:
-    import boto.beanstalk
-    HAS_BOTO = True
+    import boto3
+    HAS_BOTO3 = True
 except ImportError:
-    HAS_BOTO = False
+    HAS_BOTO3 = False
 
 
 def describe_app(ebs, app_name):
     apps = list_apps(ebs, app_name)
 
-    return None if len(apps) != 1 else apps[0]
+    if len(apps) < 1:
+        return None
+    else:
+        return apps
 
 def list_apps(ebs, app_name):
-    apps = ebs.describe_applications(app_name)
-    apps = apps["DescribeApplicationsResponse"]["DescribeApplicationsResult"]["Applications"]
+    if app_name is not None:
+        apps = ebs.describe_applications(ApplicationNames=[app_name])
+    else:
+        apps = ebs.describe_applications()
 
-    return apps
+    return apps.get('Applications')
 
 def check_app(ebs, app, module):
     app_name = module.params['app_name']
@@ -95,8 +100,8 @@ def main():
     )
     module = AnsibleModule(argument_spec=argument_spec, supports_check_mode=True)
 
-    if not HAS_BOTO:
-        module.fail_json(msg='boto required for this module')
+    if not HAS_BOTO3:
+        module.fail_json(msg='boto3 required for this module')
 
     app_name = module.params['app_name']
     description = module.params['description']
@@ -107,13 +112,10 @@ def main():
             module.fail_json('Module parameter "app_name" is required if "state" is not "list"')
 
     result = {}
-    region, ec2_url, aws_connect_kwargs = get_aws_connection_info(module)
+    region, ec2_url, aws_connect_kwargs = get_aws_connection_info(module, boto3=True)
 
     try:
-        ebs = boto.beanstalk.connect_to_region(region)
-
-    except boto.exception.NoAuthHandlerFound, e:
-        module.fail_json(msg='No Authentication Handler found: %s ' % str(e))
+        ebs = boto3_conn(module, conn_type='client', resource='elasticbeanstalk', region=region, endpoint=ec2_url, **aws_connect_kwargs)
     except Exception, e:
         module.fail_json(msg='Failed to connect to Beanstalk: %s' % str(e))
 
@@ -126,29 +128,35 @@ def main():
 
     if state == 'present':
         if app is None:
-            create_app = ebs.create_application(app_name, description)
+            if description is None:
+                create_app = ebs.create_application(ApplicationName=app_name)
+            else:
+                create_app = ebs.create_application(ApplicationName=app_name, Description=description)
             app = describe_app(ebs, app_name)
 
-            result = dict(changed=True, app=app)
+            result = dict(changed=True, Applications=app)
         else:
-            if app["Description"] != description:
-                ebs.update_application(app_name, description)
+            if app[0].get('Description') != description:
+                ebs.update_application(ApplicationName=app_name, Description=description)
                 app = describe_app(ebs, app_name)
 
-                result = dict(changed=True, app=app)
+                result = dict(changed=True, Applications=app)
             else:
-                result = dict(changed=False, app=app)
+                result = dict(changed=False, Applications=app)
 
     elif state == 'absent':
         if app is None:
             result = dict(changed=False, output='Application not found')
         else:
-            ebs.delete_application(app_name)
-            result = dict(changed=True, app=app)
+            ebs.delete_application(ApplicationName=app_name)
+            result = dict(changed=True, Applications=app)
 
     else:
-        apps = list_apps(ebs, app_name)
-        result = dict(changed=False, apps=apps)
+        apps = describe_app(ebs, app_name)
+        if apps is None:
+            result = dict(changed=False, output="Application not found")
+        else:
+            result = dict(changed=False, Applications=apps)
 
     module.exit_json(**result)
 

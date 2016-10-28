@@ -1,0 +1,92 @@
+---
+- hosts: localhost
+  connection: local
+  serial: 1
+  gather_facts: False
+  pre_tasks:
+    - set_fact:
+        app_name: "elasticbeanstalk_app-testing"
+        region: "us-west-2"
+  tasks:
+  - name: "Ensure no app is already created"
+    elasticbeanstalk_app:
+      app_name: "{{ app_name }}"
+      region: "{{ region }}"
+      state: "absent"
+
+  - name: "Wait to ensure the API doesn't return stale objects"
+    pause:
+      seconds: "3"
+
+  - name: "Create Application"
+    elasticbeanstalk_app:
+      app_name: "{{ app_name }}"
+      region: "{{ region }}"
+      state: "present"
+    register: "created_application"
+
+  - debug:
+      var: "created_application"
+
+  - name: "Test that our created application is left unchanged"
+    elasticbeanstalk_app:
+      app_name: "{{ app_name }}"
+      region: "{{ region }}"
+      state: "present"
+
+  - name: "Test adding description"
+    elasticbeanstalk_app:
+      app_name: "{{ app_name }}"
+      description: "Testing boto3 elasticbeanstalk_app Ansible Module"
+      region: "{{ region }}"
+      state: "present"
+    register: "created_application"
+
+  - name: "Test changing the Application Description"
+    elasticbeanstalk_app:
+      app_name: "{{ app_name }}"
+      description: "Changed the description"
+      region: "{{ region }}"
+      state: "present"
+    register: "updated_application"
+
+  - debug:
+      var: "updated_application"
+
+  - name: "Display created app"
+    elasticbeanstalk_app:
+      app_name: "{{ app_name }}"
+      region: "{{ region }}"
+      state: "list"
+
+  - name: "Display non-existant app"
+    elasticbeanstalk_app:
+      app_name: "This app don't exist"
+      region: "{{ region }}"
+      state: "list"
+
+  - name: "List all apps"
+    elasticbeanstalk_app:
+      region: "{{ region }}"
+      state: "list"
+    register: "all_apps"
+
+  - debug:
+      var: "all_apps"
+
+  - name: "Delete the application"
+    elasticbeanstalk_app:
+      app_name: "{{ app_name }}"
+      description: "Changed the description"
+      region: "{{ region }}"
+      state: "absent"
+
+  - name: "Wait to ensure the API updates"
+    pause:
+      seconds: "3"
+
+  - name: "Ensure the deleted application is not here anymore"
+    elasticbeanstalk_app:
+      app_name: "{{ app_name }}"
+      region: "{{ region }}"
+      state: "absent"
