@@ -6,7 +6,9 @@ Ansible modules for working with Amazon Elastic Beanstalk
 Requirements
 ------------
 
-This module requires [boto](https://github.com/boto/boto)
+elasticbeanstalk_app & elasticbeanstalk_version require [boto](https://github.com/boto/boto)
+
+elasticbeanstalk_env requires [boto3](https://github.com/boto/boto3)
 
 
 Example Playbook
@@ -54,6 +56,8 @@ The example playbook demonstrates how to create an application and version and u
             - Namespace: aws:elasticbeanstalk:application:environment
               OptionName: PARAM2
               Value: foobar
+          tags:
+            Name: Sample App
         register: env
 
 
