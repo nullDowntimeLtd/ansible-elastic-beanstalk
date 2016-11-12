@@ -1,0 +1,141 @@
+---
+- hosts: localhost
+  connection: local
+  serial: 1
+  gather_facts: False
+  pre_tasks:
+    - name: "set_fact (OK)"
+      set_fact:
+        app_name: "elasticbeanstalk_version-testing"
+        app_version: "elasticbeanstalk_version-testing"
+        region: "us-west-2"
+        #These variables are static and must be valid
+        app_verison_artifact: "java-tomcat-v1.zip"
+    - assert:
+          that:
+            - app_version_bucket is defined
+  tasks:
+
+  - name: "Create Application for Applicaiton version testing (CHANGED)"
+    elasticbeanstalk_app:
+      app_name: "{{ app_name }}"
+      description: "Testing boto3 elasticbeanstalk_version Ansible Module"
+      region: "{{ region }}"
+      state: "present"
+    register: created_application
+
+  - debug:
+      var: created_application
+
+  - name: "Create Application Version (CHANGED)"
+    elasticbeanstalk_version:
+      app_name: "{{ app_name }}"
+      version_label: "Testing"
+      s3_bucket: "{{ app_version_bucket }}"
+      s3_key: "{{ app_verison_artifact }}"
+      region: "{{ region }}"
+      state: "present"
+    register: created_application_version
+
+  - debug:
+      var: created_application_version
+
+  - name: "Test Idempotency (OK)"
+    elasticbeanstalk_version:
+      app_name: "{{ item.ApplicationName }}"
+      version_label: "Testing"
+      s3_bucket: "{{ app_version_bucket }}"
+      s3_key: "{{ app_verison_artifact }}"
+      region: "{{ region }}"
+      state: "present"
+    with_items:
+      - "{{ created_application.Applications }}"
+
+  - name: "Test Updating Description (CHANGED)"
+    elasticbeanstalk_version:
+      app_name: "{{ item.ApplicationName }}"
+      version_label: "Testing"
+      description: "Test adding a description"
+      s3_bucket: "{{ app_version_bucket }}"
+      s3_key: "{{ app_verison_artifact }}"
+      region: "{{ region }}"
+      state: "present"
+    with_items:
+      - "{{ created_application.Applications }}"
+    register: new_created_application_version
+
+  - debug:
+      var: new_created_application_version
+
+  - name: "Test creating another Application Version (CHANGED)"
+    elasticbeanstalk_version:
+      app_name: "{{ item.ApplicationName }}"
+      version_label: "Testing-2"
+      s3_bucket: "{{ app_version_bucket }}"
+      s3_key: "{{ app_verison_artifact }}"
+      region: "{{ region }}"
+      state: "present"
+    with_items:
+      - "{{ created_application.Applications }}"
+
+  - name: "Test Listing our created Application Version (OK)"
+    elasticbeanstalk_version:
+      app_name: "{{ item.ApplicationName }}"
+      region: "{{ region }}"
+      state: "list"
+    with_items:
+      - "{{ created_application.Applications }}"
+    register: list_application_version
+
+  - debug:
+      var: list_application_version
+
+  - name: "Test Listing all Application Version (OK)"
+    elasticbeanstalk_version:
+      region: "{{ region }}"
+      state: "list"
+    register: all_app_versions
+
+  - debug:
+      var: all_app_versions
+
+  - name: "Test listing a non-existent Application (OK)"
+    elasticbeanstalk_version:
+      app_name: "Non-existent Application"
+      region: "{{ region }}"
+      state: "list"
+    register: "Non_existent"
+
+  - name: "Display Non-existent Application Application Versions (Should be empty)"
+    debug:
+      var: "Non_existent"
+
+  - name: "Delete the Application Version (CHANGED)"
+    elasticbeanstalk_version:
+      app_name: "{{ item.ApplicationName }}"
+      version_label: "Testing"
+      s3_bucket: "{{ app_version_bucket }}"
+      s3_key: "{{ app_verison_artifact }}"
+      region: "{{ region }}"
+      state: "absent"
+    with_items:
+      - "{{ created_application.Applications }}"
+
+  - name: "Idempotent delete the Application Version (OK)"
+    elasticbeanstalk_version:
+      app_name: "{{ item.ApplicationName }}"
+      version_label: "Testing"
+      s3_bucket: "{{ app_version_bucket }}"
+      s3_key: "{{ app_verison_artifact }}"
+      region: "{{ region }}"
+      state: "absent"
+    with_items:
+      - "{{ created_application.Applications }}"
+
+  - name: "Delete the application (CHANGED)"
+    elasticbeanstalk_app:
+      app_name: "{{ app_name }}"
+      description: "Changed the description"
+      region: "{{ region }}"
+      state: "absent"
+    register: updated_application
