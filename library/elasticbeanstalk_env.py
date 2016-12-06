@@ -323,7 +323,7 @@ def main():
             tags_to_apply = [ {'Key':k,'Value':v} for k,v in tags.iteritems()]
             ebs.create_environment(**filter_empty(ApplicationName=app_name, EnvironmentName=env_name,
                                    VersionLabel=version_label, TemplateName=template_name, Tags=tags_to_apply,
-                                   SolutionStackName=solution_stack_name, NAMEPrefix=cname_prefix,
+                                   SolutionStackName=solution_stack_name, CNAMEPrefix=cname_prefix,
                                    Description=description, OptionSettings=option_settings,
                                    Tier={ 'Name': tier_name, 'Type': tier_type, 'Version': '1.0' }))
 
